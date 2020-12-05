@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.VisualBasic.FileIO;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -101,6 +102,11 @@ namespace MakeMyIndex
                 flagUsage = true;
             }
 
+            if (string.Compare(Path.GetExtension(myIndexFilename), ".txt", true) != 0)
+            {
+                flagUsage = true;
+            }
+
             if (flagUsage)
             {
                 Console.WriteLine("usage: MakeMyIndex [options] /o indexFilename");
@@ -109,12 +115,15 @@ namespace MakeMyIndex
                 Console.WriteLine("       /s shareDir        共有フォルダを指定する");
                 Console.WriteLine("       /b backupDir       バックアップディレクトリ指定");
                 Console.WriteLine("       /bs backupShareDir バックアップ共有フォルダ指定");
-                Console.WriteLine("       /o indexFilename   出力ファイル指定(必須)");
+                Console.WriteLine("       /o indexFilename   出力ファイル指定(必須、拡張子txt)");
 
                 return;
             }
 
-            using (StreamWriter sw = new StreamWriter(myIndexFilename, false, Encoding.GetEncoding("shift_jis")))
+            string tempFilename = Path.GetTempFileName();
+
+            //using (StreamWriter sw = new StreamWriter(myIndexFilename, false, Encoding.GetEncoding("shift_jis")))
+            using (StreamWriter sw = new StreamWriter(tempFilename, false, Encoding.GetEncoding("shift_jis")))
             {
                 sw.WriteLine(CONFKEY_COMPUTERNAME + "=" + Environment.MachineName);
 
@@ -153,6 +162,17 @@ namespace MakeMyIndex
                     sw.WriteLine(partName);
                 }
             }
+
+            // myIndexFilenameと同じディレクトリに移動する
+            // (最後のmoveがアトミックになるようにするため、テンポラリディレクトリとボリュームが異なる場合に同じボリュームになるようにする)
+            string myIndexDir = Path.GetDirectoryName(myIndexFilename);
+            string temp = Path.GetFileName(tempFilename);
+            string tempFilename2 = Path.Combine(myIndexDir, temp);
+
+            FileSystem.MoveFile(tempFilename, tempFilename2, true);
+
+            // 同じディレクトリ内でmoveする(アトミックな処理)
+            FileSystem.MoveFile(tempFilename2, myIndexFilename, true);
         }
 
         private static List<string> GetFiles(string dir)
